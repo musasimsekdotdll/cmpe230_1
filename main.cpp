@@ -9,6 +9,10 @@ using namespace std;
 
 
 stack<char> ops;
+vector<string> tokens;
+map<string, bool> isThereAVariable;
+string type = "";
+int lastRand = 0;
 
 int preced(char c) {
 	switch(c) {
@@ -45,6 +49,26 @@ bool isOperator(string token) {
 	}
 }
 
+string randomVarGen() {
+	string temp = "randomVar";
+	bool isThere = true;
+	while(isThere) {
+		string str = temp + to_string(lastRand);
+		if(isThereAVariable[str]) {
+			lastRand++;
+		} else {
+			temp = str;
+			isThereAVariable[temp] = true;
+			cout << "Define " << temp << " as 0" << endl;
+			isThere = false;
+
+		}
+	}
+
+	return temp;
+
+}
+
 bool isOperand(const string& token) {
 	 for (char const &c : token) {
         if (isdigit(c) == 0) {
@@ -52,6 +76,28 @@ bool isOperand(const string& token) {
     	}
     }
     return true;
+}
+
+bool isOp(char c) {
+	switch(c) {
+		case'(':
+			return true;
+		case')':
+			return true;
+		case'+':
+			return true;
+		case'-':
+			return true;
+		case'*':
+			return true;
+		case'/':
+			return true;
+		case'=':
+			type = "expression";
+			return true;
+		default:
+			return false;
+	}
 }
 
 int result(int a, int b, char c) {
@@ -67,14 +113,47 @@ int result(int a, int b, char c) {
 	}
 }
 
+void compute(vector<string>& operation, string var) {
+	queue<string> proceed;
+	stack<string> keep;
+
+	for(int i=0; i<operation.size(); i++) {
+		proceed.push(operation[i]);
+	}
 
 
-void compute(vector<string>& tokens, string& postfix) {
+	while(!proceed.empty()) {
+		string s = proceed.front();
+		proceed.pop();
+
+		if(isOperator(s)) {
+			string v1 = keep.top();
+			keep.pop();
+			string v2 = keep.top();
+			keep.pop();
+			
+			string opr = randomVarGen();
+			cout << opr << " = " << v2 << " " << s << " " << v1 << endl;
+			keep.push(opr);
+		}	else {
+			keep.push(s);
+		}
+	}
+
+
+	cout << var << " = " << keep.top() << endl;
+
+}
+
+void to_postfix(vector<string>& tokens) {
+	vector<string> operation;
 
 	char op;
-	for(int i=0; i<tokens.size(); i++) {
+	string str;
+
+	for(int i=2; i<tokens.size(); i++) {
 		if(isOperand(tokens[i])) {
-			postfix += tokens[i];
+			operation.push_back(tokens[i]);
 		} else if(tokens[i] == "(") {
 			ops.push('(');
 		} else if(tokens[i] == ")") {
@@ -84,8 +163,10 @@ void compute(vector<string>& tokens, string& postfix) {
 				op = ops.top();
 				ops.pop();
 
-				postfix += " ";
-				postfix[postfix.length()-1] = op;
+				str += " ";
+				str[str.length()-1] = op;
+				operation.push_back(str);
+				str="";
 
 			}
 			
@@ -104,8 +185,10 @@ void compute(vector<string>& tokens, string& postfix) {
 					op = ops.top();
 					ops.pop();
 
-					postfix += " ";
-					postfix[postfix.length()-1] = op;
+					str += " ";
+					str[str.length()-1] = op;
+					operation.push_back(str);
+					str="";
 
 				}
 
@@ -121,22 +204,121 @@ void compute(vector<string>& tokens, string& postfix) {
 		op = ops.top();
 		ops.pop();
 
-		postfix += " ";
-		postfix[postfix.length()-1] = op;
+		str += " ";
+		str[str.length()-1] = op;
+		operation.push_back(str);
+		str = "";
 
+	}
+	compute(operation, tokens[0]);
+}
+
+void tokenize(string line) {
+	string str;
+
+	for(int i=0; i<line.length(); i++) {
+
+		if(line[i] == '#') {
+
+			break;
+		}
+		switch(line[i]) {
+			case'\t':
+			case'\n':
+				continue;
+
+		}
+
+		if(line[i] == ' ') {
+
+			if(str == "") {
+			} else {
+				tokens.push_back(str);
+				str = "";
+			}
+			continue;
+		} else if(isOp(line[i])) {
+
+			if(str != "") {
+				tokens.push_back(str);
+			}
+
+			str = " ";
+			str[0] = line[i];
+			tokens.push_back(str);
+
+			str = "";
+			continue;
+		} else {
+			str += " ";
+			str[str.length()-1] = line[i];
+		}
+
+
+	}
+
+	if(str != "") {
+		tokens.push_back(str);
+	}
+}
+
+bool checkVar(string var_name) {
+	if(!isThereAVariable[var_name]) {
+		cout << "Define " << var_name << " as 0" << endl;
+		isThereAVariable[var_name] = true;
+		return false;
+	} else {
+		cout << "Error!" << endl;
+		return true;
 	}
 }
 
 
+void assign(vector<string>& tokens) {
+	bool check;
+	if(tokens.size() == 1) {
+		check = checkVar(tokens[0]);
+		if(check) {
+			return;
+		} 
+	} else if(tokens.size() == 2) {
+		cout << "Error!" << endl;
+		return;
+	} else {
+		if(tokens[1] != "=") {
+			cout << "Error!" << endl;
+			return;
+		} else {
+			check = checkVar(tokens[0]);
+			if(check) {
+				return;
+			}
+
+			to_postfix(tokens);
+
+
+		}
+	}
+}
 
 
 int main(int argc, char const *argv[])
 {
 
-	string post = "";
 
-	vector<string> line = { "(", "12", "-", "10", ")", "*", "(", "1", "-" , "3", ")"};
-	compute(line, post);
-	cout << post << endl;
+	string line = "a = 12  -  10  * (1-3) ";
+	cout << "line is : " << line << endl;
+
+	for (int i = 0; i < 1; ++i)	{
+		tokenize(line);
+
+		if(type == "expression" || type == "") {
+			assign(tokens);
+		}
+
+
+	}
+
+
 	return 0;
 }
